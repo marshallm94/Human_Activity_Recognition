@@ -1,4 +1,4 @@
-![Human Activity Recognition Notebook](src/Activity\ Recognition.ipynb)
+[Human Activity Recognition Notebook](src/Activity\ Recognition.ipynb)
 
 # About the Data
 
