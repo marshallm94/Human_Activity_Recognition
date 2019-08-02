@@ -1,3 +1,7 @@
+![Human Activity Recognition Notebook](src/Activity\ Recognition.ipynb)
+
+# About the Data
+
 1. Title: Activity Recognition from a Single Chest-Mounted Accelerometer
 	Updated Nov, 2013 , P. Casale, email: plcasale@ieee.org
 	
@@ -36,7 +40,7 @@
        IbPRIA'11, 289-296, Springer-Verlag, 2011
        available on https://www.researchgate.net/publication/221258784_Human_Activity_Recognition_from_Accelerometer_Data_Using_a_Wearable_Device?ev=prf_pub
        
-  --- Casale, P. Pujol, O. and Radeva, P. 
+   --- Casale, P. Pujol, O. and Radeva, P. 
        "Personalization and user verification in wearable systems using biometric walking patterns"
        Personal and Ubiquitous Computing, 16(5), 563-580, 2012
        available on https://www.researchgate.net/publication/227192676_Personalization_and_user_verification_in_wearable_systems_using_biometric_walking_patterns?ev=prf_pub
