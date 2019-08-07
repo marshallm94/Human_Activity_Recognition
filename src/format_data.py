@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+from sklearn.externals import joblib
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 
@@ -150,7 +151,7 @@ def aggregate_subjects(files, subject_names):
 def standardize_df(df, cols_to_scale, cols_to_keep, col_dtype_dict):
     '''
     standardizes the columns in cols to scale to have mean 0 and variance 1.
-    Adds and additional columns in cols_to_keep to final output.
+    Adds on additional columns in cols_to_keep to final output.
     '''
     scaler = StandardScaler()
 
@@ -207,18 +208,15 @@ def create_lagged_df(df, activity_col, columns, shift=5, row_time_steps=1):
 
 if __name__ == "__main__":
 
-    ################ START DATA TRANSFORMATION FOR EDA SECTION ################ 
     data_dir = '../data/'
 
-    files = [data_dir + f'{i}.csv' for i in range(1, 16)]
-    subject_names = [str(i) for i in range(1, 16)]
+    # leaving the last subject (participant 15) to use as the testing data
+    files = [data_dir + f'{i}.csv' for i in range(1, 15)]
+    subject_names = [str(i) for i in range(1, 15)]
 
     # importing data for EDA
     df = aggregate_subjects(files, subject_names)
 
-    ################# END DATA TRANSFORMATION FOR EDA SECTION ################# 
-
-    ################ START DATA TRANSFORMATION FOR ML SECTION ################# 
     # importing data for base estimator
     subject_dfs = {}
     for x, filename in enumerate(files):
@@ -228,15 +226,9 @@ if __name__ == "__main__":
     averager = ActivitySequenceAverager(subject_dfs.values())
     averager.transform()
 
-    # base estimator - no sequential nature taken into account
-    X = averager.aggregated_df[['x_acc','y_acc','z_acc']].values
-    y = averager.aggregated_df['label'].values
-
-    # train test split for base estimator
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=5)
-
-    scaler = StandardScaler()
-    X_train_scaled = scaler.fit_transform(X_train)
+    # base estimator data - no sequential nature taken into account
+    base_estimator_X = averager.aggregated_df[['x_acc','y_acc','z_acc']].values
+    base_estimator_y = averager.aggregated_df['label'].values
 
     # creating lagged variables for final data set
     lagged_df = create_lagged_df(averager.aggregated_df,
@@ -263,13 +255,14 @@ if __name__ == "__main__":
         trimmed_df[f'rolling_{dimension}_average'] = np.mean(trimmed_df[dimension_columns], axis=1)
 
 
-    X_lag = trimmed_df.loc[:,~trimmed_df.columns.isin(['label'])].values
+    # removing the sequence number column (seq) to prevent any "leakage" -
+    X_lag = trimmed_df.loc[:,~trimmed_df.columns.isin(['label','seq'])].values
     y_lag = trimmed_df['label'].values
 
     # train test split
-    X_train, X_test, y_train, y_test = train_test_split(X_lag,
-                                                        y_lag,
-                                                        test_size=0.25)
+    X_train, X_val, y_train, y_val = train_test_split(X_lag,
+                                                      y_lag,
+                                                      test_size=0.25)
 
     # standardizing the values
     scaler = StandardScaler()
@@ -278,16 +271,19 @@ if __name__ == "__main__":
     # saving x_train, x_test, y_train, y_test and StandardScaler object
     # for modeling phase
     data_dir = "../data"
+    joblib.dump(scaler, f"{data_dir}/scaler.obj")
+
+    columns = trimmed_df.columns[~trimmed_df.columns.isin(['label','seq'])]
+
     pd.DataFrame(X_train_scaled).to_csv(f"{data_dir}/X_train_scaled.csv",
                                         index=False,
-                                        header=False)
-    pd.DataFrame(X_test).to_csv(f"{data_dir}/X_test_unscaled.csv",
+                                        header=columns)
+    pd.DataFrame(X_val).to_csv(f"{data_dir}/X_val_unscaled.csv",
                                 index=False,
-                                header=False)
+                                header=columns)
     pd.DataFrame(y_train).to_csv(f"{data_dir}/y_train.csv",
                                  index=False,
-                                 header=False)
-    pd.DataFrame(y_test).to_csv(f"{data_dir}/y_test.csv",
+                                 header=['Activity'])
+    pd.DataFrame(y_val).to_csv(f"{data_dir}/y_val.csv",
                                 index=False,
-                                header=False)
-    ################# END DATA TRANSFORMATION FOR ML SECTION ##################
+                                header=['Activity'])

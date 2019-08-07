@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 plt.style.use('ggplot')
 
+
 def dimension_plot(df, variable, y_tick_range, color, title):
     '''
     Used to plot each activity across a given dimension.
@@ -47,19 +48,26 @@ def subject_comparison_plot(df, variable, color, title):
     plt.show()
 
 
-def bar_plot(variable_options, variable_heights, color, x_lab, y_lab, title, long_x=False):
+def bar_plot(df, values_col, label_col, x_label, y_label, title,
+             long_x_names=False):
     '''
     Used to show the distribution of participant and class data.
     '''
-    figure = plt.figure(figsize=(12, 8))
+    fix, ax = plt.subplots(figsize=(12, 9))
 
-    plt.bar(variable_options, variable_heights, color=color)
-    if long_x:
+    palette = sns.color_palette('husl', df.shape[0])
+    ax = sns.barplot(df[label_col],
+                     df[values_col],
+                     order=df[label_col],
+                     palette=palette)
+
+    if long_x_names:
         plt.xticks(rotation=-30, ha='left')
 
-    plt.xlabel(x_lab, fontweight='bold', fontsize=12)
-    plt.ylabel(y_lab, fontweight='bold', fontsize=12)
-    plt.suptitle(title, fontweight='bold', fontsize=14, y=1.025)
+    plt.xlabel(x_label, fontweight='bold', fontsize=12)
+    plt.ylabel(y_label, fontweight='bold', fontsize=12)
+    plt.suptitle(title, fontweight='bold', fontsize=16, y=1.025)
+
     plt.tight_layout()
 
     plt.show()
