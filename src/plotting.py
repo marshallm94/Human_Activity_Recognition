@@ -47,27 +47,59 @@ def subject_comparison_plot(df, variable, color, title):
     plt.tight_layout()
     plt.show()
 
+def barplot(df, values_col, labels_col, x_label, y_label, title,
+            long_x_names=False, filename=False):
+    '''
+    Create a barplot using the values in values_col to dictate the bar heights
+    and the labels in labels_col to dictate the labels for those values.
 
-def bar_plot(df, values_col, label_col, x_label, y_label, title,
-             long_x_names=False):
+    Parameters:
+    ----------
+    df : (Pandas DataFrame)
+        A data frame that contains a numeric column that contains the values
+        to be used for bar heights (named values_col) and a column to be
+        used as labels for those values (named labels_col).
+    values_col : (str)
+        The name of the column in df to be used to dictate the bar heights.
+        Must be numeric.
+    labels_col : (str)
+        The name of the column in df to be used for the labels of the bars.
+    x_label : (str)
+        A label for the x axis.
+    y_label : (str)
+        A label for the y axis.
+    title : (str)
+        A title for the plot.
+    long_x_names : (bool)
+        Indicates whether the labels (keys in dictionary) for the x axis
+        are long enough to warrant rotating them. Default=False.
+    filename : (str)
+        The filename to which the figure should be saved. If None (default),
+        plt.show() will be called and the image will be shown.
+
+    Returns:
+    ----------
+    None : (None)
+        No object is returned; the image is either shown or saved to filename.
     '''
-    Used to show the distribution of participant and class data.
-    '''
-    fix, ax = plt.subplots(figsize=(12, 9))
+    fig = plt.figure(figsize=(12, 9))
 
     palette = sns.color_palette('husl', df.shape[0])
-    ax = sns.barplot(df[label_col],
-                     df[values_col],
-                     order=df[label_col],
-                     palette=palette)
+    sns.barplot(x=df[labels_col],
+                y=df[values_col],
+                order=df[labels_col],
+                palette=palette)
 
     if long_x_names:
         plt.xticks(rotation=-30, ha='left')
 
     plt.xlabel(x_label, fontweight='bold', fontsize=12)
     plt.ylabel(y_label, fontweight='bold', fontsize=12)
-    plt.suptitle(title, fontweight='bold', fontsize=16, y=1.025)
+    plt.title(title, fontweight='bold', fontsize=16, y=1.025)
 
     plt.tight_layout()
 
-    plt.show()
+    if not filename:
+        plt.show()
+    elif filename:
+        plt.savefig(filename)

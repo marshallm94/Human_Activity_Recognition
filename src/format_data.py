@@ -102,10 +102,19 @@ class ActivitySequenceAverager(object):
 
         return merged_df
 
-
 def format_csv(filepath):
     '''
     Formats each CSV according to the problem definition.
+
+    Parameters:
+    ----------
+    filepath : (str)
+        The (relative or absolute) filepath to the CSV file to be imported.
+
+    Returns:
+    ----------
+    df : (Pandas DataFrame)
+        A data frame with an intuitively labeled target attribute. 
     '''
     columns = ['seq', 'x_acc', 'y_acc', 'z_acc', 'label']
     col_types = {'seq':int, 'x_acc':float, 'y_acc':float, 'z_acc':float,'label':object}
@@ -131,9 +140,29 @@ def format_csv(filepath):
 
     return df
 
-def aggregate_subjects(files, subject_names):
+# defining default csv files to import
+data_dir = '../data/'
+subjects = [str(i) for i in range(1, 16)]
+files = [data_dir + subject + '.csv' for subject in subjects]
+
+def aggregate_subjects(files=files, subject_names=subjects):
     '''
     Aggregates all files in files into one dataframe.
+
+    Parameters:
+    ----------
+    files : (list/iterable)
+        An iterable object that contains the relative or absolute filenames
+        of the CSV files to be aggregated. Default is a list of 15 numerically
+        labeled files in the ../data/ directory.
+    subject_names : (list/iterable)
+        An iterable object containing an identifier for each subject.
+        Default = [str(i) for i in range(1, 16)].
+
+    Returns:
+    ----------
+    total_data_set : (Pandas DataFrame)
+        A vertically stacked data frame of all data in files.
     '''
     frames = []
     for i in range(len(files)):
@@ -168,8 +197,8 @@ def standardize_df(df, cols_to_scale, cols_to_keep, col_dtype_dict):
 
     return new_df
 
-
-def create_lagged_features(df, columns, shift, row_time_steps):
+def create_lagged_features(df, columns, shift, row_time_steps,
+                           remove_imputed_zeros=True, verbose=True):
     '''
     Creates shift lagged columns for each column specified in columns.
     '''
@@ -183,15 +212,28 @@ def create_lagged_features(df, columns, shift, row_time_steps):
             values = np.insert(base, np.repeat(0, x), np.repeat(0, x))
             out[new_col] = values[:-x]
 
+    if remove_imputed_zeros:
+        cols = [col for col in out.columns if f'T_minus_{shift}' in col]
+
+        masks = []
+        for col in cols:
+            mask = out[col] != 0
+            masks.append(mask)
+
+        total_mask = np.logical_and.reduce(masks)
+        out = out.loc[total_mask,:]
+
+        if verbose:
+            print(f'{df.shape[0]-out.shape[0]} observations removed from data set.')
+    
     return out
 
-
-def create_lagged_df(df, activity_col, columns, shift=5, row_time_steps=1):
+def create_lagged_df(df, activity_col, columns, shift, row_time_steps=1,
+                     remove_imputed_zeros=True, verbose=True):
     '''
-    Iterates through the dataframe that is the output of ActivitySequenceAverager and
-    creates lagged variables.
+    Iterates through the dataframe that is the output of
+    ActivitySequenceAverager and creates lagged variables.
     '''
-
     frames = []
 
     for activity in np.unique(df[activity_col]):
@@ -199,8 +241,14 @@ def create_lagged_df(df, activity_col, columns, shift=5, row_time_steps=1):
         mask = df[activity_col] == activity
         subset = df.loc[mask, :].copy()
 
-        lagged_activity_df = create_lagged_features(subset, columns, shift, row_time_steps)
+        lagged_activity_df = create_lagged_features(subset,
+                                                    columns,
+                                                    shift,
+                                                    row_time_steps,
+                                                    remove_imputed_zeros,
+                                                    verbose)
 
+        lagged_activity_df[activity_col] = subset.loc[shift:, activity_col].copy()
         frames.append(lagged_activity_df)
 
     return pd.concat(frames)
@@ -217,73 +265,133 @@ if __name__ == "__main__":
     # importing data for EDA
     df = aggregate_subjects(files, subject_names)
 
-    # importing data for base estimator
-    subject_dfs = {}
-    for x, filename in enumerate(files):
-        subject = str(x+1)
-        subject_dfs[subject] = format_csv(filename)
+#    # importing data for base estimator
+#    subject_dfs = {}
+#    for x, filename in enumerate(files):
+#        subject = str(x+1)
+#        subject_dfs[subject] = format_csv(filename)
+#
+#    # averaging all subjects accelerometer data on sequence and activity
+#    averager = ActivitySequenceAverager(subject_dfs.values())
+#    averager.transform()
+#
+#    # removing the sequence number column (seq) to prevent any "leakage" - 
+#    # since some activities were performed for longer sequences, this could be
+#    # accidentally be recognized as useful information by the model
+#    averager.aggregated_df.drop('seq', axis=1, inplace=True)
+#
+#    # standardizing the training data and saving the scaler object
+#    scaler = StandardScaler()
+#    averager.aggregated_df[['x_acc','y_acc','z_acc']] = scaler.fit_transform(averager.aggregated_df[['x_acc','y_acc','z_acc']].values)
+#    data_dir = "../data"
+#    joblib.dump(scaler, f"{data_dir}/scaler.joblib")
+#
+#    # base estimator data - no sequential nature taken into account
+#    base_estimator_X = averager.aggregated_df[['x_acc','y_acc','z_acc']].values
+#    base_estimator_y = averager.aggregated_df['label'].values
 
-    averager = ActivitySequenceAverager(subject_dfs.values())
-    averager.transform()
 
-    # base estimator data - no sequential nature taken into account
-    base_estimator_X = averager.aggregated_df[['x_acc','y_acc','z_acc']].values
-    base_estimator_y = averager.aggregated_df['label'].values
 
     # creating lagged variables for final data set
-    lagged_df = create_lagged_df(averager.aggregated_df,
-                                 'label',
-                                 ['x_acc','y_acc','z_acc'])
+#    lag_5_df = create_lagged_df(averager.aggregated_df,
+#                                activity_col='label',
+#                                columns=['x_acc','y_acc','z_acc'],
+#                                shift=5,
+#                                verbose=False)
+    frames = []
+    for subject in np.unique(df['subject']):
+        mask = df['subject'] == subject
+        subset = df.loc[mask, df.columns]
+        subject_lag_df = create_lagged_df(subset,
+                                          activity_col='label',
+                                          columns=['x_acc','y_acc','z_acc'],
+                                          shift=5,
+                                          verbose=False)
+        frames.append(subject_lag_df)
 
-    # adding the activity labels back on
-    lagged_df['label'] = averager.aggregated_df['label']
-
-    # removing imputed zero's from lagged data transformation
-    mask = lagged_df['x_acc_T_minus_5'] != 0
-    mask1 = lagged_df['y_acc_T_minus_5'] != 0
-    mask2 = lagged_df['z_acc_T_minus_5'] != 0
-
-    trimmed_df = lagged_df[mask & mask1 & mask2].copy()
-
-    # create rolling average
-    cols = list(trimmed_df.columns)
+    lag_5_df = pd.concat(frames)
+    
+    # create rolling average over previous 5 time-steps for each dimension
+    cols = list(lag_5_df.columns)
     cols.remove('label')
 
     for dimension in ['x','y','z']:
-        
         dimension_columns = [col for col in cols if dimension in col]
-        trimmed_df[f'rolling_{dimension}_average'] = np.mean(trimmed_df[dimension_columns], axis=1)
+        lag_5_df[f'rolling_{dimension}_average'] = np.mean(lag_5_df[dimension_columns], axis=1)
 
+    X_columns = lag_5_df.columns[~lag_5_df.columns.isin(['label','seq'])]
 
-    # removing the sequence number column (seq) to prevent any "leakage" -
-    X_lag = trimmed_df.loc[:,~trimmed_df.columns.isin(['label','seq'])].values
-    y_lag = trimmed_df['label'].values
+    lag_5_df[X_columns].to_csv(f"{data_dir}/lag_5_X.csv",
+                               index=False,
+                               header=True)
+    lag_5_df['label'].to_csv(f"{data_dir}/lag_5_y.csv",
+                             index=False,
+                             header=True)
 
-    # train test split
-    X_train, X_val, y_train, y_val = train_test_split(X_lag,
-                                                      y_lag,
-                                                      test_size=0.25)
+    # creating 15 time-lagged variables
+#    lag_15_df = create_lagged_df(averager.aggregated_df,
+#                                 activity_col='label',
+#                                 columns=['x_acc','y_acc','z_acc'],
+#                                 shift=15,
+#                                 verbose=False)
 
-    # standardizing the values
-    scaler = StandardScaler()
-    X_train_scaled = scaler.fit_transform(X_train)
+    # creating 15 time-lagged variables
+    frames = []
+    for subject in np.unique(df['subject']):
+        mask = df['subject'] == subject
+        subset = df.loc[mask, df.columns]
+        subject_lag_df = create_lagged_df(subset,
+                                          activity_col='label',
+                                          columns=['x_acc','y_acc','z_acc'],
+                                          shift=15,
+                                          verbose=False)
+        frames.append(subject_lag_df)
 
-    # saving x_train, x_test, y_train, y_test and StandardScaler object
-    # for modeling phase
-    data_dir = "../data"
-    joblib.dump(scaler, f"{data_dir}/scaler.obj")
+    lag_15_df = pd.concat(frames)
 
-    columns = trimmed_df.columns[~trimmed_df.columns.isin(['label','seq'])]
+    # create 5, 10 & 15 minute rolling average and variance columns for
+    # each dimension
+    cols = list(lag_15_df.columns)
+    cols.remove('label')
 
-    pd.DataFrame(X_train_scaled).to_csv(f"{data_dir}/X_train_scaled.csv",
-                                        index=False,
-                                        header=columns)
-    pd.DataFrame(X_val).to_csv(f"{data_dir}/X_val_unscaled.csv",
-                                index=False,
-                                header=columns)
-    pd.DataFrame(y_train).to_csv(f"{data_dir}/y_train.csv",
-                                 index=False,
-                                 header=['Activity'])
-    pd.DataFrame(y_val).to_csv(f"{data_dir}/y_val.csv",
-                                index=False,
-                                header=['Activity'])
+    for dimension in ['x','y','z']:
+        for lag in [5, 10, 15]:
+        
+            # creating column subset for mean() & var() calculation
+            input_cols = []
+            for col in cols:
+                if col in input_cols:
+                    continue
+                # if dim in col and ...
+                elif dimension in col:
+                    # if col != <dim>_acc col and the time lag of the col is <= lag
+                    if len(col.split("_")) > 2 and int(col.split("_")[-1]) <= lag:
+                        input_cols.append(col)
+                    # if the col == <dim>_acc col
+                    elif len(col.split("_")) == 2:
+                        input_cols.append(col)
+
+            lag_15_df[f'rolling_T_minus_{lag}_{dimension}_average'] = np.mean(lag_15_df[input_cols], axis=1)
+            lag_15_df[f'rolling_T_minus_{lag}_{dimension}_variance'] = np.var(lag_15_df[input_cols], axis=1)
+
+    # removing columns whose time lag isn't divisible by 5, a statistic column
+    # or one of the original variables given
+    cols_to_keep = ['x_acc','y_acc','z_acc', 'label','subject']
+    for col in lag_15_df.columns[~lag_15_df.columns.isin(['seq'])]:
+        if col in cols_to_keep:
+            continue
+        elif 'roll' in col or 'var' in col:
+            cols_to_keep.append(col)
+        elif int(col.split("_")[-1]) % 5 == 0:
+            cols_to_keep.append(col)
+
+    lag_15_df = lag_15_df[cols_to_keep]
+
+    X_columns = lag_15_df.columns[~lag_15_df.columns.isin(['label','seq'])]
+
+    lag_15_df[X_columns].to_csv(f"{data_dir}/lag_15_X.csv",
+                               index=False,
+                               header=True)
+    lag_15_df['label'].to_csv(f"{data_dir}/lag_15_y.csv",
+                             index=False,
+                             header=True)

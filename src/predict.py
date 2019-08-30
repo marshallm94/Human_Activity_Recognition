@@ -33,8 +33,7 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument('-f',
                         '--filename',
-                        help='The file that contains the model to use
-                        for prediction.',
+                        help=,
                         default='final_model.joblib')
     parser.add_argument('-t',
                         '--transform',
@@ -42,6 +41,11 @@ if __name__ == "__main__":
                         type=create_boolean,
                         help='Whether the data should be transformed
                         (i.e. scaled and time-lag features created)'.)
+    parser.add_argument('-m',
+                        '--model_file',
+                        default='../data/X_test.csv',
+                        help='The CSV filename of the data to use for 
+                        prediction. Note that if '.)
     args = parser.parse_args()
 
     # load data
