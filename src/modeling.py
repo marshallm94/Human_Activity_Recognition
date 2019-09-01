@@ -17,21 +17,24 @@ model_dict = {"Random Forest":
                   {"ModelPipeline": Pipeline([
                        ('scaler', StandardScaler()),
                        ('model', RandomForestClassifier(n_estimators=500,
-                                                        random_state=5))
+                                                        random_state=5,
+                                                        n_jobs=-1,
+                                                        verbose=1))
                        ])
                    },
               "AdaBoost Classifer":
                   {"ModelPipeline": Pipeline([
                        ('scaler', StandardScaler()),
                        ('model', AdaBoostClassifier(n_estimators=500,
-                                                    random_state=5)),
+                                                    random_state=5))          
                        ])
                    },
               "GradientBoost Classifier":
                   {"ModelPipeline": Pipeline([
                        ('scaler', StandardScaler()),
                        ('model', GradientBoostingClassifier(n_estimators=500,
-                                                            random_state=5)),
+                                                            random_state=5,
+                                                            verbose=1)),
                        ])
                    },
               "Multinomial Logistic Regression":
@@ -39,7 +42,9 @@ model_dict = {"Random Forest":
                        ('scaler', StandardScaler()),
                        ('model', LogisticRegression(multi_class="ovr",
                                                     solver='saga',
-                                                    max_iter=500)),
+                                                    max_iter=500,
+                                                    n_jobs=-1,
+                                                    verbose=1)),
                        ])
                    },
               "SVM":
@@ -54,7 +59,8 @@ model_dict = {"Random Forest":
                   {"ModelPipeline": Pipeline([
                        ('scaler', StandardScaler()),
                        ('model', MLPClassifier(hidden_layer_sizes=(100, 100),
-                                               batch_size=500))
+                                               batch_size=500,
+                                               verbose=1))
                                  
                        ])
                    }
