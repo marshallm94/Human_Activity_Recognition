@@ -2,9 +2,9 @@
 
 The data for this project can be found in either the [data](data/) directory or by following [this link](https://archive.ics.uci.edu/ml/datasets/Activity+Recognition+from+Single+Chest-Mounted+Accelerometer).
 
-I chose to look at this data set from more than the traditional approach, shown in the [Jupyter Notebook](activity_recognition.ipynb). Since various approaches were explored, the time consuming and computationally expensive parts of the analysis were run on AWS, an **c5d.4xlarge** instance (32 Gib RAM, 16 Cores) to be specific. The [setup file](setup.sh) can be sourced on the instance to set up the appropriate environment. 
+I chose to look at this data set from more than the traditional approach, shown in the [Jupyter Notebook](activity_recognition.ipynb). Since various approaches were explored, the time consuming and computationally expensive parts of the analysis were run on AWS, on a **c5d.4xlarge** instance (32 Gib RAM, 16 Cores) to be specific. The [setup file](setup.sh) can be sourced on the instance to set up the appropriate environment. 
 
-###### About the Data
+#### About the Data
 
 1. Title: Activity Recognition from a Single Chest-Mounted Accelerometer
 	Updated Nov, 2013 , P. Casale, email: plcasale@ieee.org
