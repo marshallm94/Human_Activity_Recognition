@@ -14,13 +14,14 @@ sudo chown ec2-user:ec2-user $HOME/anaconda
 wget -S -T 10 -t 5 https://repo.continuum.io/archive/Anaconda3-2019.07-Linux-x86_64.sh -O $HOME/anaconda/anaconda_install.sh
 
 # running Anaconda installation script
-# bash -u option = 
-bash $HOME/anaconda/anaconda_install.sh -u -b -p $HOME/anaconda
+# anaconda_install -b option = install in BATCH mode. Assumes you agree to the license agreement
+# anaconda_install -p option = install prefix/path
+bash $HOME/anaconda/anaconda_install.sh -b -p $HOME/anaconda
 
 # Add Anaconda to current session's PATH
 export PATH=$HOME/anaconda/bin:$PATH
 
-conda install -c conda-forge imbalanced-learn
+conda install -c conda-forge -y imbalanced-learn
 # git clone $1
 # adding working directory to PYTHONPATH so each Python can locate src/,
 # which will be used as a package for each approach
