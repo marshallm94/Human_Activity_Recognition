@@ -6,6 +6,26 @@ plt.style.use('ggplot')
 def dimension_plot(df, variable, y_tick_range, color, title):
     '''
     Used to plot each activity across a given dimension.
+    Stacks multiple line plots on top of one another in order to compare how
+    different activities vary. Pass in a dataframe with only one subject.
+
+    Parameters:
+    ----------
+    df : (Pandas DataFrame)
+        A data frame that contains a numeric column named variable.
+    variable : (str)
+        The name of the numerical column to be plotted.
+    y_tick_range : (list)
+        A list of length = 2 that determines the y-tick range.
+    color : (str)
+        The color to for the line plot.
+    title : (str)
+        The title for the plot. 
+
+    Returns:
+    ----------
+    None : (None)
+        No object is returned; the image is shown.
     '''
     fig = plt.figure(figsize=(12, 8))
 
