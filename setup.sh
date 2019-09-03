@@ -1,5 +1,6 @@
 #!/bin/bash
 
+sudo yum update
 sudo yum -y install tmux
 
 # creating a anaconda directory in the home directory
@@ -23,7 +24,7 @@ bash $HOME/anaconda/anaconda_install.sh -u -b -p $HOME/anaconda
 export PATH=$HOME/anaconda/bin:$PATH
 
 conda install -c conda-forge -y imbalanced-learn
-# git clone $1
+git clone $1
 # adding working directory to PYTHONPATH so each Python can locate src/,
 # which will be used as a package for each approach
 export PYTHONPATH=$PYTHONPATH:$(pwd)
