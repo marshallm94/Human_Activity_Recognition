@@ -1,4 +1,4 @@
-source setup.sh
+source setup.sh $1
 
 mkdir images
 
