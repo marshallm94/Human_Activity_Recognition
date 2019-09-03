@@ -16,7 +16,8 @@ wget -S -T 10 -t 5 https://repo.continuum.io/archive/Anaconda3-2019.07-Linux-x86
 # running Anaconda installation script
 # anaconda_install -b option = install in BATCH mode. Assumes you agree to the license agreement
 # anaconda_install -p option = install prefix/path
-bash $HOME/anaconda/anaconda_install.sh -b -p $HOME/anaconda
+# anaconda_install -u option = update
+bash $HOME/anaconda/anaconda_install.sh -u -b -p $HOME/anaconda
 
 # Add Anaconda to current session's PATH
 export PATH=$HOME/anaconda/bin:$PATH

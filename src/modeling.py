@@ -2,6 +2,7 @@ import time
 import pandas as pd
 import numpy as np
 
+from scipy.stats import skew, kurtosis
 from imblearn.under_sampling import RandomUnderSampler
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
@@ -45,14 +46,6 @@ model_dict = {"Random Forest":
                                                     max_iter=500,
                                                     n_jobs=-1,
                                                     verbose=1)),
-                       ])
-                   },
-              "SVM":
-                  {"ModelPipeline": Pipeline([
-                       ('scaler', StandardScaler()),
-                       ('model', svm.SVC(kernel='poly',
-                                         degree=5,
-                                         gamma='auto')),
                        ])
                    },
               "MLP":

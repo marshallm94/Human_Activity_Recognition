@@ -24,11 +24,27 @@ def dimension_plot(df, variable, y_tick_range, color, title):
     plt.tight_layout()
     plt.show()
 
-
 def subject_comparison_plot(df, variable, color, title):
     '''
-    Used to compare how different subjects "behave" across a given activity and dimension.
-    Pass in a dataframe with only one activity.
+    Stacks multiple line plots on top of one another in order to compare how
+    different subjects "behave" across a given activity and dimension. Pass
+    in a dataframe with only one activity.
+
+    Parameters:
+    ----------
+    df : (Pandas DataFrame)
+        A data frame that contains a numeric column named variable.
+    variable : (str)
+        The name of the numerical column to be plotted.
+    color : (str)
+        The color to for the line plot.
+    title : (str)
+        The title for the plot. 
+
+    Returns:
+    ----------
+    None : (None)
+        No object is returned; the image is shown.
     '''
     fig = plt.figure(figsize=(12, 20))
 
@@ -89,6 +105,10 @@ def barplot(df, values_col, labels_col, x_label, y_label, title,
                 y=df[values_col],
                 order=df[labels_col],
                 palette=palette)
+
+    # setting y-axis to percentage
+    locs, _ = plt.yticks()
+    plt.yticks(locs, labels=['{:,.2%}'.format(x) for x in locs])
 
     if long_x_names:
         plt.xticks(rotation=-30, ha='left')

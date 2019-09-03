@@ -1,3 +1,4 @@
+import random
 from collections import Counter
 
 # the below imports assume that Human_Activity_Recognition have been added to
@@ -77,38 +78,47 @@ def CV_multiple_models(X, y, model_dict, cv=8, verbose=True):
         dictionary will have a new key value pair of the cross validation
         scores (key = 'CV Scores').
     '''
-    # randomly selecting subjects to use as testing subjects
+    # randomly selecting subjects to use as testing subjects - doing this
+    # within the function ensures that the ith element in
+    # model_sub_dict['CV Scores'] is using the same testing subject for each
+    # model.
     subjects_to_test = random.choices(np.unique(X['subject']), k=cv) 
 
     for model_name, model_sub_dict in model_dict.items():
 
         model_sub_dict['CV Scores'] = []
 
-    # cross validation - note that each model_sub_dict['CV Scores'] array will
-    # be tested on the same testing subjects
     for test_subject in subjects_to_test:
 
         x_train, x_test, y_train, y_test = train_test_split(X,
                                                             y,
                                                             test_subject)
 
+        # undersample majority classes randomly
+        under_sampler = RandomUnderSampler(sampling_strategy='not minority',
+                                           random_state=5,
+                                           replacement=False)
+
+        x_train, y_train = under_sampler.fit_resample(x_train, y_train)
+
         for model_name, model_sub_dict in model_dict.items():
 
             if verbose:
-                print(f"\nCross validating a {model_name} on X and y\n")
+                print(f"Time = {time.ctime()} | Training a {model_name} on X and y")
 
-            model_sub_dict['Model'].fit(x_train, np.ravel(y_train))
-            y_hat = model_sub_dict['Model'].predict(x_test)
+            model_sub_dict['ModelPipeline'].fit(x_train,
+                                                np.ravel(y_train))
+            y_hat = model_sub_dict['ModelPipeline'].predict(x_test)
 
             acc = np.mean(y_hat == y_test)
 
             model_sub_dict['CV Scores'].append(acc)
 
             if verbose:
-                print(f"\n{model_name} Accuracy = {acc}\n")
+                print(f"Time = {time.ctime()} | {model_name} Accuracy = {acc}")
 
     # converting CV scores from list to np.array
-    for model_name, model_sub_dict in model_dict.items():
+    for _, model_sub_dict in model_dict.items():
 
         model_sub_dict['CV Scores'] = np.array(model_sub_dict['CV Scores'])
 
@@ -119,34 +129,131 @@ if __name__ == "__main__":
     # 'stacking' all 15 subject's data on top of one another
     df = aggregate_subjects()
 
-    # removing the SVM model since the training time is absurd for data of this
-    # size (check src.modeling for model_dict)
-    del model_dict['SVM']
-
     # creating lagged variables for each subject/label subset
-    frames = []
-    for subject in np.unique(df['subject']):
-        mask = df['subject'] == subject
-        subset = df.loc[mask, df.columns]
-        subject_lag_df = create_lagged_df(subset,
-                                          activity_col='label',
-                                          columns=['x_acc','y_acc','z_acc'],
-                                          shift=5,
-                                          verbose=False)
-        frames.append(subject_lag_df)
-
-    lag_5_df = pd.concat(frames)
+    lag_5_df = create_lagged_df(df=df,
+                                activity_col='label',
+                                subject_col='subject',
+                                columns=['x_acc','y_acc','z_acc'],
+                                shift=5,
+                                verbose=False)
     
-    # create rolling average over previous 5 time-steps for each dimension
+    # create various statistical rolling statistical features
     cols = list(lag_5_df.columns)
     cols.remove('label')
 
     for dimension in ['x','y','z']:
         dimension_columns = [col for col in cols if dimension in col]
         lag_5_df[f'rolling_{dimension}_average'] = np.mean(lag_5_df[dimension_columns], axis=1)
+        lag_5_df[f'rolling_{dimension}_variance'] = np.var(lag_5_df[dimension_cols], axis=1)
+        lag_5_df[f'rolling_{dimension}_min'] = np.min(lag_5_df[dimension_cols], axis=1)
+        lag_5_df[f'rolling_{dimension}_max'] = np.max(lag_5_df[dimension_cols], axis=1)
+        lag_5_df[f'rolling_{dimension}_kurtosis'] = kurtosis(lag_5_df[dimension_cols], axis=1)
+        lag_5_df[f'rolling_{dimension}_skewness'] = skew(lag_5_df[dimension_cols], axis=1)
+
 
     # removing columns that would lead to prediction leakage given the approach
     X_columns = lag_5_df.columns[~lag_5_df.columns.isin(['label','seq'])]
 
     lag_5_X = lag_5_df[X_columns]
     lag_5_y = lag_5_df['label']
+
+    # undersample majority classes randomly
+    under_sampler = RandomUnderSampler(sampling_strategy='not minority',
+                                       random_state=5,
+                                       replacement=False)
+
+    lag_5_X, lag_5_y = under_sampler.fit_resample(lag_5_X, lag_5_y)
+
+    # model_dict originally defined in src/modeling.py
+    model_dict = CV_multiple_models(X=lag_5_X,
+                                    y=lag_5_y,
+                                    model_dict=model_dict)
+                 
+
+    cv_error_dict = {}
+    for name, sub_dict in model_dict.items():
+        cv_error_dict[name] = sub_dict['CV Scores']
+
+    filename=f"images/Approach3_CV_Lag5.png"
+    cv_error_comparison_plot(pd.DataFrame(cv_error_dict),
+                             x_label="Model Type",
+                             y_label="Accuracy",
+                             title=f'8 Subject Train 1 Subject Test Accuracy with 5 Step Time Lag',
+                             filename=filename)
+
+    # creating 15 time-lagged variables
+    lag_15_df = create_lagged_df(df=df,
+                                 activity_col='label',
+                                 subject_col='subject',
+                                 columns=['x_acc','y_acc','z_acc'],
+                                 shift=15,
+                                 verbose=False)
+
+    # create 5, 10 & 15 minute rolling statistical features for each dimension
+    cols = list(lag_15_df.columns)
+    cols.remove('label')
+
+    for dimension in ['x','y','z']:
+        for lag in [5, 10, 15]:
+        
+            # creating column subset for mean() & var() calculation
+            input_cols = []
+            for col in cols:
+                if col in input_cols:
+                    continue
+                # if dim in col and ...
+                elif dimension in col:
+                    # if col != <dim>_acc col and the time lag of the col is <= lag
+                    if len(col.split("_")) > 2 and int(col.split("_")[-1]) <= lag:
+                        input_cols.append(col)
+                    # if the col == <dim>_acc col
+                    elif len(col.split("_")) == 2:
+                        input_cols.append(col)
+
+            lag_15_df[f'rolling_T_minus_{lag}_{dimension}_average'] = np.mean(lag_15_df[input_cols], axis=1)
+            lag_15_df[f'rolling_T_minus_{lag}_{dimension}_variance'] = np.var(lag_15_df[input_cols], axis=1)
+            lag_15_df[f'rolling_T_minus_{lag}_{dimension}_min'] = np.min(lag_15_df[input_cols], axis=1)
+            lag_15_df[f'rolling_T_minus_{lag}_{dimension}_max'] = np.max(lag_15_df[input_cols], axis=1)
+            lag_15_df[f'rolling_T_minus_{lag}_{dimension}_kurtosis'] = kurtosis(lag_15_df[input_cols], axis=1)
+            lag_15_df[f'rolling_T_minus_{lag}_{dimension}_skewness'] = skew(lag_15_df[input_cols], axis=1)
+
+    # removing columns whose time lag isn't divisible by 5, a statistic column
+    # or one of the original variables given
+    cols_to_keep = ['x_acc','y_acc','z_acc', 'label']
+    for col in lag_15_df.columns[~lag_15_df.columns.isin(['seq','subject'])]:
+        if col in cols_to_keep:
+            continue
+        elif 'roll' in col or 'var' in col:
+            cols_to_keep.append(col)
+        elif int(col.split("_")[-1]) % 5 == 0:
+            cols_to_keep.append(col)
+
+    # removing columns that would lead to prediction leakage given the approach
+    X_columns = lag_15_df.columns[~lag_15_df.columns.isin(['label'])]
+
+    lag_15_X = lag_15_df[X_columns]
+    lag_15_y = lag_15_df['label']
+
+    # undersample majority classes randomly
+    under_sampler = RandomUnderSampler(sampling_strategy='not minority',
+                                       random_state=5,
+                                       replacement=False)
+
+    lag_15_X, lag_15_y = under_sampler.fit_resample(lag_15_X, lag_15_y)
+
+    # model_dict originally defined in src/modeling.py
+    model_dict = CV_multiple_models(X=lag_15_X,
+                                    y=lag_15_y,
+                                    model_dict=model_dict)
+                 
+
+    cv_error_dict = {}
+    for name, sub_dict in model_dict.items():
+        cv_error_dict[name] = sub_dict['CV Scores']
+
+    filename=f"images/Approach3_CV_Lag5.png"
+    cv_error_comparison_plot(pd.DataFrame(cv_error_dict),
+                             x_label="Model Type",
+                             y_label="Accuracy",
+                             title=f'8 Subject Train 1 Subject Test Accuracy with 15 Step Time Lag',
+                             filename=filename)

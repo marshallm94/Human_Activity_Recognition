@@ -51,31 +51,27 @@ if __name__ == "__main__":
 
     ########################## Traditional Approach ###########################
 
-    # base estimator data - no sequential nature taken into account
-    base_estimator_X = df[['x_acc','y_acc','z_acc']].values
-    base_estimator_y = df['label'].values
-
     # creating lagged variables for each subject/label subset
-    frames = []
-    for subject in np.unique(df['subject']):
-        mask = df['subject'] == subject
-        subset = df.loc[mask, df.columns]
-        subject_lag_df = create_lagged_df(subset,
-                                          activity_col='label',
-                                          columns=['x_acc','y_acc','z_acc'],
-                                          shift=5,
-                                          verbose=False)
-        frames.append(subject_lag_df)
-
-    lag_5_df = pd.concat(frames)
+    lag_5_df = create_lagged_df(df=df,
+                                activity_col='label',
+                                subject_col='subject',
+                                columns=['x_acc','y_acc','z_acc'],
+                                shift=5,
+                                verbose=False)
     
-    # create rolling average over previous 5 time-steps for each dimension
+    # create various statistical rolling statistical features
     cols = list(lag_5_df.columns)
     cols.remove('label')
 
     for dimension in ['x','y','z']:
         dimension_columns = [col for col in cols if dimension in col]
         lag_5_df[f'rolling_{dimension}_average'] = np.mean(lag_5_df[dimension_columns], axis=1)
+        lag_5_df[f'rolling_{dimension}_variance'] = np.var(lag_5_df[dimension_cols], axis=1)
+        lag_5_df[f'rolling_{dimension}_min'] = np.min(lag_5_df[dimension_cols], axis=1)
+        lag_5_df[f'rolling_{dimension}_max'] = np.max(lag_5_df[dimension_cols], axis=1)
+        lag_5_df[f'rolling_{dimension}_kurtosis'] = kurtosis(lag_5_df[dimension_cols], axis=1)
+        lag_5_df[f'rolling_{dimension}_skewness'] = skew(lag_5_df[dimension_cols], axis=1)
+
 
     # removing columns that would lead to prediction leakage given the approach
     X_columns = lag_5_df.columns[~lag_5_df.columns.isin(['label','seq','subject'])]
@@ -111,10 +107,6 @@ if __name__ == "__main__":
                                                         lag_5_y,
                                                         test_size=0.25)
 
-    # removing the SVM model since the training time is absurd for data of this
-    # size (check src.modeling for model_dict)
-    del model_dict['SVM']
-
     # model_dict originally defined in src/modeling.py
     model_dict = cross_validate_multiple_models(x_train,
                                                 np.ravel(y_train))
@@ -130,21 +122,14 @@ if __name__ == "__main__":
                              filename="images/Approach1_InitialCV_Lag5.png")
 
     # creating 15 time-lagged variables
-    frames = []
-    for subject in np.unique(df['subject']):
-        mask = df['subject'] == subject
-        subset = df.loc[mask, df.columns]
-        subject_lag_df = create_lagged_df(subset,
-                                          activity_col='label',
-                                          columns=['x_acc','y_acc','z_acc'],
-                                          shift=15,
-                                          verbose=False)
-        frames.append(subject_lag_df)
+    lag_15_df = create_lagged_df(df=df,
+                                 activity_col='label',
+                                 subject_col='subject',
+                                 columns=['x_acc','y_acc','z_acc'],
+                                 shift=15,
+                                 verbose=False)
 
-    lag_15_df = pd.concat(frames)
-
-    # create 5, 10 & 15 minute rolling average and variance columns for
-    # each dimension
+    # create 5, 10 & 15 minute rolling statistical features for each dimension
     cols = list(lag_15_df.columns)
     cols.remove('label')
 
@@ -167,6 +152,10 @@ if __name__ == "__main__":
 
             lag_15_df[f'rolling_T_minus_{lag}_{dimension}_average'] = np.mean(lag_15_df[input_cols], axis=1)
             lag_15_df[f'rolling_T_minus_{lag}_{dimension}_variance'] = np.var(lag_15_df[input_cols], axis=1)
+            lag_15_df[f'rolling_T_minus_{lag}_{dimension}_min'] = np.min(lag_15_df[input_cols], axis=1)
+            lag_15_df[f'rolling_T_minus_{lag}_{dimension}_max'] = np.max(lag_15_df[input_cols], axis=1)
+            lag_15_df[f'rolling_T_minus_{lag}_{dimension}_kurtosis'] = kurtosis(lag_15_df[input_cols], axis=1)
+            lag_15_df[f'rolling_T_minus_{lag}_{dimension}_skewness'] = skew(lag_15_df[input_cols], axis=1)
 
     # removing columns whose time lag isn't divisible by 5, a statistic column
     # or one of the original variables given
@@ -214,41 +203,3 @@ if __name__ == "__main__":
                              y_label="Accuracy",
                              title='Approach 1: 8 Fold CV Accuracy with 15 Step Time Lag',
                              filename="images/Approach1_InitialCV_Lag15.png")
-
-    ########################## Averaging Approach #############################
-
-#    # averaging all subjects accelerometer data on sequence and activity
-#    subject_dfs = {}
-#    for x, filename in enumerate(files):
-#        subject = str(x+1)
-#        subject_dfs[subject] = format_csv(filename)
-#
-#    averager = ActivitySequenceAverager(subject_dfs.values())
-#    averager.transform()
-#
-#    # removing the sequence number column (seq) to prevent any "leakage" - 
-#    # since some activities were performed for longer sequences, this could be
-#    # accidentally be recognized as useful information by the model
-#    averager.aggregated_df.drop('seq', axis=1, inplace=True)
-#
-#    # standardizing the training data and saving the scaler object
-#    scaler = StandardScaler()
-#    averager.aggregated_df[['x_acc','y_acc','z_acc']] = scaler.fit_transform(averager.aggregated_df[['x_acc','y_acc','z_acc']].values)
-#    data_dir = "../data"
-#    joblib.dump(scaler, f"{data_dir}/scaler.joblib")
-#
-#    # base estimator data - no sequential nature taken into account
-#    base_estimator_X = averager.aggregated_df[['x_acc','y_acc','z_acc']].values
-#    base_estimator_y = averager.aggregated_df['label'].values
-#
-#   # base estimator data - no sequential nature taken into account
-#   base_estimator_X = df[['x_acc','y_acc','z_acc']].values
-#   base_estimator_y = df['label'].values
-#
-#
-#   # creating lagged variables for final data set
-#    lag_5_df = create_lagged_df(averager.aggregated_df,
-#                                activity_col='label',
-#                                columns=['x_acc','y_acc','z_acc'],
-#                                shift=5,
-#                                verbose=False)

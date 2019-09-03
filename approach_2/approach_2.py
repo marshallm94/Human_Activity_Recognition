@@ -9,34 +9,29 @@ from src.plotting import *
 
 if __name__ == "__main__":
 
-    # removing the SVM model since the training time is absurd for data of this
-    # size (check src.modeling for model_dict)
-    del model_dict['SVM']
-
     # 'stacking' all 15 subject's data on top of one another
     df = aggregate_subjects()
 
     # creating lagged variables for each subject/label subset
-    frames = []
-    for subject in np.unique(df['subject']):
-        mask = df['subject'] == subject
-        subset = df.loc[mask, df.columns]
-        subject_lag_df = create_lagged_df(subset,
-                                          activity_col='label',
-                                          columns=['x_acc','y_acc','z_acc'],
-                                          shift=5,
-                                          verbose=False)
-        frames.append(subject_lag_df)
-
-    lag_5_df = pd.concat(frames)
+    lag_5_df = create_lagged_df(df=df,
+                                activity_col='label',
+                                subject_col='subject',
+                                columns=['x_acc','y_acc','z_acc'],
+                                shift=5,
+                                verbose=False)
     
-    # create rolling average over previous 5 time-steps for each dimension
+    # create various statistical rolling statistical features
     cols = list(lag_5_df.columns)
     cols.remove('label')
 
     for dimension in ['x','y','z']:
         dimension_columns = [col for col in cols if dimension in col]
         lag_5_df[f'rolling_{dimension}_average'] = np.mean(lag_5_df[dimension_columns], axis=1)
+        lag_5_df[f'rolling_{dimension}_variance'] = np.var(lag_5_df[dimension_cols], axis=1)
+        lag_5_df[f'rolling_{dimension}_min'] = np.min(lag_5_df[dimension_cols], axis=1)
+        lag_5_df[f'rolling_{dimension}_max'] = np.max(lag_5_df[dimension_cols], axis=1)
+        lag_5_df[f'rolling_{dimension}_kurtosis'] = kurtosis(lag_5_df[dimension_cols], axis=1)
+        lag_5_df[f'rolling_{dimension}_skewness'] = skew(lag_5_df[dimension_cols], axis=1)
 
     # removing columns that would lead to prediction leakage given the approach
     X_columns = lag_5_df.columns[~lag_5_df.columns.isin(['label','seq','subject'])]
@@ -48,6 +43,13 @@ if __name__ == "__main__":
         mask = lag_5_df['subject'] == subject
         lag_5_X = lag_5_df.loc[mask, X_columns].values
         lag_5_y = lag_5_df.loc[mask, 'label'].values
+
+        # undersample majority classes randomly
+        under_sampler = RandomUnderSampler(sampling_strategy='not minority',
+                                           random_state=5,
+                                           replacement=False)
+
+        lag_5_X, lag_5_y = under_sampler.fit_resample(lag_5_X, lag_5_y)
 
         x_train, x_test, y_train, y_test = train_test_split(lag_5_X,
                                                             lag_5_y,
@@ -70,21 +72,14 @@ if __name__ == "__main__":
                                  filename=filename)
 
     # creating 15 time-lagged variables
-    frames = []
-    for subject in np.unique(df['subject']):
-        mask = df['subject'] == subject
-        subset = df.loc[mask, df.columns]
-        subject_lag_df = create_lagged_df(subset,
-                                          activity_col='label',
-                                          columns=['x_acc','y_acc','z_acc'],
-                                          shift=15,
-                                          verbose=False)
-        frames.append(subject_lag_df)
+    lag_15_df = create_lagged_df(df=df,
+                                 activity_col='label',
+                                 subject_col='subject',
+                                 columns=['x_acc','y_acc','z_acc'],
+                                 shift=15,
+                                 verbose=False)
 
-    lag_15_df = pd.concat(frames)
-
-    # create 5, 10 & 15 minute rolling average and variance columns for
-    # each dimension
+    # create 5, 10 & 15 minute rolling statistical features for each dimension
     cols = list(lag_15_df.columns)
     cols.remove('label')
 
@@ -107,6 +102,10 @@ if __name__ == "__main__":
 
             lag_15_df[f'rolling_T_minus_{lag}_{dimension}_average'] = np.mean(lag_15_df[input_cols], axis=1)
             lag_15_df[f'rolling_T_minus_{lag}_{dimension}_variance'] = np.var(lag_15_df[input_cols], axis=1)
+            lag_15_df[f'rolling_T_minus_{lag}_{dimension}_min'] = np.min(lag_15_df[input_cols], axis=1)
+            lag_15_df[f'rolling_T_minus_{lag}_{dimension}_max'] = np.max(lag_15_df[input_cols], axis=1)
+            lag_15_df[f'rolling_T_minus_{lag}_{dimension}_kurtosis'] = kurtosis(lag_15_df[input_cols], axis=1)
+            lag_15_df[f'rolling_T_minus_{lag}_{dimension}_skewness'] = skew(lag_15_df[input_cols], axis=1)
 
     # removing columns whose time lag isn't divisible by 5, a statistic column
     # or one of the original variables given
@@ -129,6 +128,13 @@ if __name__ == "__main__":
         mask = lag_15_df['subject'] == subject
         lag_15_X = lag_15_df.loc[mask, X_columns].values
         lag_15_y = lag_15_df.loc[mask, 'label'].values
+
+        # undersample majority classes randomly
+        under_sampler = RandomUnderSampler(sampling_strategy='not minority',
+                                           random_state=5,
+                                           replacement=False)
+
+        lag_15_X, lag_15_y = under_sampler.fit_resample(lag_15_X, lag_15_y)
 
         x_train, x_test, y_train, y_test = train_test_split(lag_15_X,
                                                             lag_15_y,
