@@ -12,7 +12,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier, GradientBoostingClassifier
 from sklearn.neural_network import MLPClassifier
 
-from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import cross_val_score, train_test_split
 
 model_dict = {"Random Forest": 
                   {"ModelPipeline": Pipeline([
@@ -23,7 +23,7 @@ model_dict = {"Random Forest":
                                                         verbose=1))
                        ])
                    },
-              "AdaBoost Classifer":
+              "AdaBoost Classifier":
                   {"ModelPipeline": Pipeline([
                        ('scaler', StandardScaler()),
                        ('model', AdaBoostClassifier(n_estimators=500,

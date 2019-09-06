@@ -58,14 +58,14 @@ if __name__ == "__main__":
                                 columns=['x_acc','y_acc','z_acc'],
                                 shift=5,
                                 verbose=False)
-    
+
     # create various statistical rolling statistical features
     cols = list(lag_5_df.columns)
     cols.remove('label')
 
     for dimension in ['x','y','z']:
-        dimension_columns = [col for col in cols if dimension in col]
-        lag_5_df[f'rolling_{dimension}_average'] = np.mean(lag_5_df[dimension_columns], axis=1)
+        dimension_cols = [col for col in cols if dimension in col]
+        lag_5_df[f'rolling_{dimension}_average'] = np.mean(lag_5_df[dimension_cols], axis=1)
         lag_5_df[f'rolling_{dimension}_variance'] = np.var(lag_5_df[dimension_cols], axis=1)
         lag_5_df[f'rolling_{dimension}_min'] = np.min(lag_5_df[dimension_cols], axis=1)
         lag_5_df[f'rolling_{dimension}_max'] = np.max(lag_5_df[dimension_cols], axis=1)

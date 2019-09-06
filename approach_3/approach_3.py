@@ -94,7 +94,9 @@ def CV_multiple_models(X, y, model_dict, cv=8, verbose=True):
                                                             y,
                                                             test_subject)
 
-        # undersample majority classes randomly
+        # undersample majority classes of training data randomly
+        # Note that this leaves the target distribution of the test subject
+        # intact.
         under_sampler = RandomUnderSampler(sampling_strategy='not minority',
                                            random_state=5,
                                            replacement=False)
@@ -142,8 +144,8 @@ if __name__ == "__main__":
     cols.remove('label')
 
     for dimension in ['x','y','z']:
-        dimension_columns = [col for col in cols if dimension in col]
-        lag_5_df[f'rolling_{dimension}_average'] = np.mean(lag_5_df[dimension_columns], axis=1)
+        dimension_cols = [col for col in cols if dimension in col]
+        lag_5_df[f'rolling_{dimension}_average'] = np.mean(lag_5_df[dimension_cols], axis=1)
         lag_5_df[f'rolling_{dimension}_variance'] = np.var(lag_5_df[dimension_cols], axis=1)
         lag_5_df[f'rolling_{dimension}_min'] = np.min(lag_5_df[dimension_cols], axis=1)
         lag_5_df[f'rolling_{dimension}_max'] = np.max(lag_5_df[dimension_cols], axis=1)
@@ -156,13 +158,6 @@ if __name__ == "__main__":
 
     lag_5_X = lag_5_df[X_columns]
     lag_5_y = lag_5_df['label']
-
-    # undersample majority classes randomly
-    under_sampler = RandomUnderSampler(sampling_strategy='not minority',
-                                       random_state=5,
-                                       replacement=False)
-
-    lag_5_X, lag_5_y = under_sampler.fit_resample(lag_5_X, lag_5_y)
 
     # model_dict originally defined in src/modeling.py
     model_dict = CV_multiple_models(X=lag_5_X,
@@ -234,13 +229,6 @@ if __name__ == "__main__":
     lag_15_X = lag_15_df[X_columns]
     lag_15_y = lag_15_df['label']
 
-    # undersample majority classes randomly
-    under_sampler = RandomUnderSampler(sampling_strategy='not minority',
-                                       random_state=5,
-                                       replacement=False)
-
-    lag_15_X, lag_15_y = under_sampler.fit_resample(lag_15_X, lag_15_y)
-
     # model_dict originally defined in src/modeling.py
     model_dict = CV_multiple_models(X=lag_15_X,
                                     y=lag_15_y,
@@ -251,7 +239,7 @@ if __name__ == "__main__":
     for name, sub_dict in model_dict.items():
         cv_error_dict[name] = sub_dict['CV Scores']
 
-    filename=f"images/Approach3_CV_Lag5.png"
+    filename=f"images/Approach3_CV_Lag15.png"
     cv_error_comparison_plot(pd.DataFrame(cv_error_dict),
                              x_label="Model Type",
                              y_label="Accuracy",
