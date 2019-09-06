@@ -68,26 +68,3 @@ def cv_error_comparison_plot(df, x_label, y_label, title, filename=None):
         plt.show()
     elif filename:
         plt.savefig(filename)
-
-def plot_feature_importances(df, importances_col, model_names_col, x_label,
-                             y_label, title, filename=None):
-
-    fig, ax = plt.subplots(figsize=(12, 9))
-
-    palette = sns.color_palette("RdBu_r", df.shape[0])[::-1]
-    ax = sns.barplot(df[importances_col],
-                     df[model_names_col],
-                     palette=palette)
-
-    plt.xlabel(x_label, fontweight='bold', fontsize=12)
-    plt.ylabel(y_label, fontweight='bold', fontsize=12)
-    plt.suptitle(title, fontweight='bold', fontsize=14)
-
-    plt.tight_layout()
-    plt.subplots_adjust(top=0.95)
-
-    if not filename:
-        plt.show()
-    elif filename:
-        plt.savefig(filename)
-
